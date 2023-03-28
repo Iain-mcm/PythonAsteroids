@@ -1,6 +1,7 @@
 import pygame
 import math
 import random
+from enum import *
 
 class asteroid(object):
 	astList = []
@@ -45,14 +46,30 @@ class bullet(object):
 		self.y += dy
 	def draw(self, surface):
 		pygame.draw.circle(surface, (100, 10, 10), (self.x, self.y), self.radius)
-
+class turret(object):
+	turList = []
+	def __init__(self, x, y, spd):
+		self.x = x
+		self.y = y
+		self.spd = spd
+		turret.turList.append(self)
+	def move(self, direction):
+		self.x += self.spd*direction
+	def draw(self, surface):
+		width = 20
+		pygame.draw.rect(surface, (0, 0, 100), pygame.Rect(self.x - width/2, self.y-width/2, width, width))
+class Direction(IntEnum):
+	LEFT = -1
+	RIGHT = 1
 def collisionCheck():
 	for b in bullet.bulletList:
 		for a in asteroid.astList:
 			if pygame.Rect.colliderect(b.hbox, a.hbox):
 				b.removeself()
 				a.removeself()
-
+				del b
+				del a
+				break
 def degToRad(deg):
 	return deg*-.0174533
 def redrawWindow(surface):
@@ -61,13 +78,14 @@ def redrawWindow(surface):
 	[ast.draw(surface) for ast in asteroid.astList]
 	[b.move() for b in bullet.bulletList]
 	[b.draw(surface) for b in bullet.bulletList]
+	[t.draw(surface) for t in turret.turList]
 	pygame.display.update()
-def spawnBullet():
+def spawnBullet(spawnX, spawnY):
 	spd = bullSpd
 	mousepos = pygame.mouse.get_pos()
-	dy = -bulletSpawnCoords["y"] + mousepos[1]
-	dx = -bulletSpawnCoords["x"] + mousepos[0]
-	bullet(bulletSpawnCoords["x"], bulletSpawnCoords["y"], math.atan2(dy, dx), spd, 5)
+	dy = -spawnY + mousepos[1]
+	dx = -spawnX + mousepos[0]
+	bullet(spawnX, spawnY, math.atan2(dy, dx), spd, 5)
 def spawnAsteroid():
 	randBegX = random.random() * width
 	randEndX = random.random() * width
@@ -76,24 +94,30 @@ def spawnAsteroid():
 	asteroid(randBegX, 100, dir, randSpeed, 25)
 def removeOutOfBounds():
 	for b in bullet.bulletList:
-		if b.y > height:
+		if b.y < 0:
 			b.removeself()
+			del b
+			break
 	for a in asteroid.astList:
 		if a.y > height:
 			a.removeself()
+			del a
+			break
 def init():
 	pygame.init()
 	pygame.font.init()
-	global width, height, bulletSpawnCoords, bullSpd, win, totalPoints
+	pygame.key.set_repeat(5, 5)
+	global width, height, bulletSpawnCoords, bullSpd, totalPoints
 	global currentPoints
 	currentPoints = 0
 	totalPoints = 0
 	bullSpd = 20
-	height = 700
-	width = 1000
+	height = 500
+	width = 800
 	bulletSpawnCoords = {"x": width/2, "y":height};
-	win = pygame.display.set_mode((width, height))
 def main():
+	win = pygame.display.set_mode((width, height))
+	t = turret(width/2, height, 5)
 	cooldown = 5
 	spawnCoolDown = 30
 	while True:
@@ -101,18 +125,31 @@ def main():
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
 				pygame.quit()
+		#Shooting:
 		mousepos = pygame.mouse.get_pos()
 		if pygame.mouse.get_pressed()[0] and cooldown <= 0:
-			spawnBullet()
+			spawnBullet(t.x, t.y)
 			cooldown = 5
 		if cooldown >= 0:
 			cooldown -= 1
+		#Taking input: 
+		keys = pygame.key.get_pressed()
+		if keys[pygame.K_a]:
+			t.move(Direction.LEFT)
+			print(Direction.LEFT)
+		if keys[pygame.K_d]:
+			t.move(Direction.RIGHT)
+			print(Direction.RIGHT)
+		#Spawning: 
 		if spawnCoolDown <= 0:
 			spawnAsteroid()
 			spawnCoolDown = 10
 		else:
 			spawnCoolDown -= 1
+		#Collision Detection:
 		collisionCheck()
+		removeOutOfBounds()
+		#Redraw and waiting:
 		redrawWindow(win)
 		pygame.time.delay(50)
 init()
