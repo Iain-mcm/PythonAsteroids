@@ -24,7 +24,7 @@ class asteroid(object):
 		self.y += dy
 		self.hbox.move_ip(dx, dy)
 	def draw(self, surface):
-		pygame.draw.circle(surface, (100-self.hp*20, 100-self.hp*20, 100-self.hp*20), (self.x, self.y), self.radius)
+		pygame.draw.circle(surface, (100-self.hp*30, 100-self.hp*30, 100-self.hp*30), (self.x, self.y), self.radius)
 class bullet(object):
 	bulletList = []
 	def __init__(self, x, y, d, vel, radius, dmg=1):
@@ -48,12 +48,14 @@ class bullet(object):
 		pygame.draw.circle(surface, (100, 10, 10), (self.x, self.y), self.radius)
 class turret(object):
 	turList = []
-	def __init__(self, x, y, spd,hp=5,dmg=1):
+	def __init__(self, x, y, spd,hp=10,dmg=1):
 		self.x = x
 		self.y = y
 		self.spd = spd
 		self.hp = hp
+		self.initHp = hp
 		self.dmg=dmg
+		self.score = 0
 		turret.turList.append(self)
 	def move(self, direction):
 		self.x += self.spd*direction
@@ -91,6 +93,7 @@ def collisionCheck():
 				del b
 				a.hp -= t.dmg
 				if a.hp <= 0:
+					t.score += math.floor((a.initialHp + a.vel)/2)
 					a.removeself()
 					del a
 				break
@@ -104,9 +107,13 @@ def redrawWindow(surface):
 	[b.draw(surface) for b in bullet.bulletList]
 	[t.draw(surface) for t in turret.turList]
 	hpBkg = pygame.Rect(10, 10, 500, 30)
-	hpBar = pygame.Rect(10, 10, t.hp * 100, 30)
+	hpBar = pygame.Rect(10, 10, t.hp * (500/t.initHp), 30)
 	pygame.draw.rect(surface, (100,70,80), hpBkg)
 	pygame.draw.rect(surface, (230,10,15), hpBar)
+
+	my_font = pygame.font.SysFont('Comic Sans MS', 30)
+	score_txt = my_font.render('Score: ' + str(t.score), False, (245, 245, 255))
+	surface.blit(score_txt, (5,height - 50))
 	pygame.display.update()
 def spawnBullet(spawnX, spawnY):
 	spd = bullSpd
@@ -119,8 +126,8 @@ def spawnAsteroid():
 	randEndX = random.random() * width
 	randSpeed = round(random.random() * 4 + 2)
 	dir = math.atan2(height, -randBegX + randEndX)
-	randHp = round(random.random()) * 2
-	asteroid(randBegX, 100, dir, randSpeed, 25, randHp)
+	randHp = math.floor(random.random() * 2 + 1)
+	asteroid(randBegX, 100, dir, randSpeed, 12 + 12*randHp, randHp)
 def removeOutOfBounds():
 	for b in bullet.bulletList:
 		if b.y < 0:
@@ -145,20 +152,29 @@ def init():
 	height = 500
 	width = 800
 	bulletSpawnCoords = {"x": width/2, "y":height};
-def main():
+def main(win):
 	global t
 	t = turret(width/2, height, 5)
-	win = pygame.display.set_mode((width, height))
 	cooldown = 5
 	spawnCoolDown = 30
 	#main menu:
 	mainMenu(win)
 	#game loop:
+	quit = False
 	while True:
 		#Kill Switch
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
+				pygame.display.quit()
 				pygame.quit()
+				quit = True
+		if t.hp <= 0:
+			print("Your score: " + str(t.score))
+			pygame.display.quit()
+			pygame.quit()
+			quit = True
+		if quit:
+			break
 		#Shooting:
 		mousepos = pygame.mouse.get_pos()
 		if pygame.mouse.get_pressed()[0] and cooldown <= 0:
@@ -170,10 +186,8 @@ def main():
 		keys = pygame.key.get_pressed()
 		if keys[pygame.K_a]:
 			t.move(Direction.LEFT)
-			print(Direction.LEFT)
 		if keys[pygame.K_d]:
 			t.move(Direction.RIGHT)
-			print(Direction.RIGHT)
 		#Spawning: 
 		if spawnCoolDown <= 0:
 			spawnAsteroid()
@@ -187,4 +201,5 @@ def main():
 		redrawWindow(win)
 		pygame.time.delay(50)
 init()
-main()
+win = pygame.display.set_mode((width, height))
+main(win)
